@@ -12,10 +12,11 @@ gem 'less-rails'
 # We want non-digest versions of our assets for font-awesome
 gem "non-stupid-digest-assets"
 
-gem 'cqm-models', '~>4.0.2'
-# gem 'cqm-reports', '~> 3.1.2'
+gem 'cqm-models', :git => 'https://github.com/projecttacoma/cqm-models.git', :branch => 'master'
+gem 'cqm-reports', :git => 'https://github.com/projecttacoma/cqm-reports.git', :branch => '2022_au'
+gem 'cqm-validators', :git => 'https://github.com/projecttacoma/cqm-validators.git', :branch => '2022_au'
 
-gem 'cqm-parsers', :git => 'https://github.com/projecttacoma/cqm-parsers.git', :branch => 'bonnie_version'
+gem 'cqm-parsers', :git => 'https://github.com/projecttacoma/cqm-parsers.git', :branch => 'master'
 
 # needed for HDS
 gem 'rubyzip', '>= 1.3.0'
@@ -36,6 +37,9 @@ gem 'apipie-rails'
 gem 'maruku' # enable Markup for API documentation
 gem 'doorkeeper', '~> 4.4.0'
 gem "doorkeeper-mongodb", '~> 4.1.0'
+
+gem 'carrierwave', '~> 2.1.0'
+gem 'carrierwave-mongoid', require: 'carrierwave/mongoid'
 
 group :test, :development, :ci do
   gem 'pry'
@@ -62,7 +66,7 @@ end
 
 group :test, :development do
   gem 'pry-byebug'
-  gem 'thin', '~> 1.7.2'
+  gem 'thin', '> 1.7.2'
   gem 'capistrano-rails'
   gem 'capistrano-npm'
   gem 'rvm1-capistrano3', require: false
@@ -94,5 +98,3 @@ gem 'browser'
 
 gem "reverse_markdown", "~> 2.0"
 gem "tinymce-rails"
-
-gem "devise_saml_authenticatable"

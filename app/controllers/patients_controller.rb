@@ -67,9 +67,9 @@ class PatientsController < ApplicationController
       patients = CQM::Patient.where(is_shared: true).find(params[:patients])
     else
       patients = CQM::Patient.by_user(current_user)
-      unless current_user.portfolio?
+      # unless current_user.portfolio?
         patients = patients.where({ :measure_ids.in => [params[:hqmf_set_id]] })
-      end
+      # end
       measure = CQM::Measure.by_user(current_user).where({ :hqmf_set_id => params[:hqmf_set_id] })
     end
 
@@ -83,7 +83,7 @@ class PatientsController < ApplicationController
         # attach the QRDA export, or the error
         begin
           qrda = qrda_patient_export(patient, patient_measure) # allow error to stop execution before header is written
-          zip.put_next_entry(File.join("qrda", "#{index + 1}_#{patient.familyName}_#{patient.givenNames[0]}.xml"))
+          zip.put_next_entry(File.join("qrda", "#{patient.familyName}_#{patient.givenNames[0]}.xml"))
           zip.puts qrda
         rescue Exception => e
           qrda_errors[patient.id] = e
@@ -145,9 +145,46 @@ class PatientsController < ApplicationController
 
     temp_file = Tempfile.new(base_file_name + "-#{request.remote_ip}.zip")
 
+    patients = JSON.parse(fhir_json)
+
+    lookups = { 'M' => 'male',
+                'F' => 'female',
+                '2106-3' => 'White',
+                '2076-8' => 'Native Hawaiian or Other Pacific Islander',
+                '2054-5' => 'Black or African American',
+                '2028-9' => 'Asian',
+                '1002-5' => 'American Indian or Alaska Native',
+                '2131-1' => 'Other',
+                '2135-2' => 'Hispanic or Latino',
+                '2186-5' => 'Not Hispanic or Latino'
+              }
+
     Zip::ZipOutputStream.open(temp_file.path) do |zos|
-      zos.put_next_entry(base_file_name + ".json")
-      zos.puts fhir_json
+      patients.each do |patient|
+        begin
+          bundle = { "resourceType" => "Bundle", "id" => patient['id'], "type" => "transaction", "entry" => [] }
+          address = [ { "city" => "Bedford", "country" => "US", "line"=> ["202 Burlington Road"], "postalCode" => "01730", "state" => "Massachusetts" } ]
+          bonnie_patient = CQM::Patient.find(patient['id'])
+          extension = [ { "url" => "http://hl7.org/fhir/us/core/StructureDefinition/us-core-race", "extension" => [ { "url" => "ombCategory", "valueCoding" => { "system" => "urn:oid:2.16.840.1.113883.6.238", "code" => bonnie_patient.race, "display" => lookups[bonnie_patient.race] } } ] }, { "url" => "http://hl7.org/fhir/us/core/StructureDefinition/us-core-ethnicity", "extension" => [ { "url" => "ombCategory", "valueCoding" => { "system" => "urn:oid:2.16.840.1.113883.6.238", "code" => bonnie_patient.ethnicity, "display" => lookups[bonnie_patient.ethnicity] } } ] } ]
+          patient['fhir_patient']['address'] = address
+          patient['fhir_patient']['gender'] = lookups[bonnie_patient.gender]
+          patient['fhir_patient']['extension'] = extension
+          bundle['entry'] << { 'resource' => patient['fhir_patient'] }
+          patient['data_elements'].each do |data_element|
+            if data_element['fhir_resource']['resourceType'] == 'Encounter'
+              data_element['fhir_resource']['status'] = 'finished'
+            end
+            if data_element['fhir_resource']['resourceType'] == 'Observation'
+              data_element['fhir_resource']['status'] = 'final'
+            end
+            bundle['entry'] << { 'resource' => data_element['fhir_resource'] }
+          end
+          zos.put_next_entry("#{bonnie_patient.givenNames[0]}_#{bonnie_patient.familyName}" + ".json")
+          zos.puts bundle.to_json
+        rescue => e
+          byebug
+        end
+      end
 
       # Generate HTML Error Report
       zos.put_next_entry("#{base_file_name}_conversion_results.html")

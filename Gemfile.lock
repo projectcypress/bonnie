@@ -1,9 +1,16 @@
 GIT
-  remote: https://github.com/projecttacoma/cqm-parsers.git
-  revision: 847019101f1a122f44e3cda0b7313d40cb71e6bb
-  branch: bonnie_version
+  remote: https://github.com/projecttacoma/cqm-models.git
+  revision: ed324e125332e45bdf8d5a851125de768596ccc0
+  branch: master
   specs:
-    cqm-parsers (0.2.1.1)
+    cqm-models (4.0.0)
+
+GIT
+  remote: https://github.com/projecttacoma/cqm-parsers.git
+  revision: 7cb8ae961a5688819f30b6fe1b42f577999a625d
+  branch: master
+  specs:
+    cqm-parsers (4.0.0.0)
       activesupport (~> 5.2.1)
       builder (~> 3.1)
       cqm-models (~> 4.0.0)
@@ -14,11 +21,35 @@ GIT
       mongoid (~> 6.4.2)
       mongoid-tree (~> 2.1.0)
       mustache
-      nokogiri (~> 1.12)
+      nokogiri (>= 1.8.5, < 1.13.0)
       rubyzip (~> 1.3)
       typhoeus
       uuid (~> 2.3.7)
       zip-zip (~> 0.3)
+
+GIT
+  remote: https://github.com/projecttacoma/cqm-reports.git
+  revision: b58ebc0264446b439811b67db8ac3161b1101de1
+  branch: 2022_au
+  specs:
+    cqm-reports (4.0.0)
+      cqm-models (~> 4.0)
+      erubis (~> 2.7)
+      log4r (~> 1.1)
+      memoist (~> 0.9)
+      mongoid-tree (> 2.0)
+      mustache
+      nokogiri (>= 1.8.5, < 1.13.0)
+      uuid (~> 2.3)
+      zip-zip (~> 0.3)
+
+GIT
+  remote: https://github.com/projecttacoma/cqm-validators.git
+  revision: 0af5be141fa5d6e7707f800b009a0cacf0628fb5
+  branch: 2022_au
+  specs:
+    cqm-validators (4.0.0)
+      nokogiri (>= 1.8.5, < 1.13.0)
 
 GIT
   remote: https://github.com/randym/axlsx
@@ -113,6 +144,18 @@ GEM
     capistrano-rails (1.6.1)
       capistrano (~> 3.1)
       capistrano-bundler (>= 1.1, < 3)
+    carrierwave (2.1.1)
+      activemodel (>= 5.0.0)
+      activesupport (>= 5.0.0)
+      addressable (~> 2.6)
+      image_processing (~> 1.1)
+      mimemagic (>= 0.3.0)
+      mini_mime (>= 0.1.3)
+      ssrf_filter (~> 1.0)
+    carrierwave-mongoid (1.3.0)
+      carrierwave (>= 0.8, < 3)
+      mongoid (>= 3.0, < 8.0)
+      mongoid-grid_fs (>= 1.3, < 3.0)
     childprocess (3.0.0)
     code_analyzer (0.5.2)
       sexp_processor
@@ -129,11 +172,10 @@ GEM
     colorize (0.8.1)
     commonjs (0.2.7)
     concurrent-ruby (1.1.8)
-    cqm-models (4.0.2)
     crack (0.4.5)
       rexml
     crass (1.0.6)
-    daemons (1.4.0)
+    daemons (1.4.1)
     debase (0.2.4.1)
       debase-ruby_core_source (>= 0.10.2)
     debase-ruby_core_source (0.10.12)
@@ -143,9 +185,6 @@ GEM
       railties (>= 4.1.0)
       responders
       warden (~> 1.2.3)
-    devise_saml_authenticatable (1.6.3)
-      devise (> 2.0.0)
-      ruby-saml (~> 1.7)
     docile (1.4.0)
     domain_name (0.5.20190701)
       unf (>= 0.0.5, < 1.0.0)
@@ -176,6 +215,9 @@ GEM
       domain_name (~> 0.5)
     i18n (1.8.10)
       concurrent-ruby (~> 1.0)
+    image_processing (1.12.1)
+      mini_magick (>= 4.9.5, < 5)
+      ruby-vips (>= 2.0.17, < 3)
     iniparse (1.5.0)
     jquery-rails (4.4.0)
       rails-dom-testing (>= 1, < 3)
@@ -208,6 +250,7 @@ GEM
     mimemagic (0.3.10)
       nokogiri (~> 1)
       rake
+    mini_magick (4.11.0)
     mini_mime (1.1.0)
     mini_portile2 (2.6.1)
     minitest (5.14.4)
@@ -216,6 +259,9 @@ GEM
     mongoid (6.4.8)
       activemodel (>= 5.1, < 6.0.0)
       mongo (>= 2.5.1, < 3.0.0)
+    mongoid-grid_fs (2.4.0)
+      mime-types (>= 1.0, < 4.0)
+      mongoid (>= 3.0, < 8.0)
     mongoid-tree (2.1.1)
       mongoid (>= 4.0, < 8)
     multi_json (1.15.0)
@@ -319,9 +365,8 @@ GEM
     ruby-debug-ide (0.7.3)
       rake (>= 0.8.1)
     ruby-progressbar (1.11.0)
-    ruby-saml (1.12.2)
-      nokogiri (>= 1.10.5)
-      rexml
+    ruby-vips (2.1.3)
+      ffi (~> 1.12)
     rubyzip (1.3.0)
     rvm1-capistrano3 (1.4.0)
       capistrano (~> 3.0)
@@ -346,6 +391,7 @@ GEM
     sshkit (1.21.2)
       net-scp (>= 1.1.2)
       net-ssh (>= 2.8.0)
+    ssrf_filter (1.0.7)
     systemu (2.6.5)
     teaspoon (1.1.5)
       railties (>= 3.2.5, < 6)
@@ -354,7 +400,7 @@ GEM
     therubyracer (0.12.3)
       libv8 (~> 3.16.14.15)
       ref
-    thin (1.7.2)
+    thin (1.8.1)
       daemons (~> 1.0, >= 1.0.9)
       eventmachine (~> 1.0, >= 1.0.4)
       rack (>= 1, < 3)
@@ -399,14 +445,17 @@ DEPENDENCIES
   bundler-audit
   capistrano-npm
   capistrano-rails
+  carrierwave (~> 2.1.0)
+  carrierwave-mongoid
   codecov
   coffee-rails
   colorize
-  cqm-models (~> 4.0.2)
+  cqm-models!
   cqm-parsers!
+  cqm-reports!
+  cqm-validators!
   debase
   devise
-  devise_saml_authenticatable
   doorkeeper (~> 4.4.0)
   doorkeeper-mongodb (~> 4.1.0)
   exception_notification!
@@ -443,7 +492,7 @@ DEPENDENCIES
   teaspoon (= 1.1.5)
   teaspoon-jasmine
   therubyracer
-  thin (~> 1.7.2)
+  thin (> 1.7.2)
   tinymce-rails
   uglifier (~> 4.1.20)
   vcr
