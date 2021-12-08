@@ -58,7 +58,7 @@ namespace :bonnie do
       end
       #criteria_valuesets = value_sets.select { |vs| vs.concepts.any? { |concept| concept['code'] == data_element['dataElementCodes'][0]['code'] } }
       CSV.open('tmp/patients.csv', 'w', col_sep: '|') do |csv|
-        user.patients.each_with_index do |patient, index|
+        user.current_group.patients.each_with_index do |patient, index|
           puts index
           patient.qdmPatient.dataElements.each do |data_element|
             code = data_element['dataElementCodes'][0]['code']
@@ -87,7 +87,7 @@ namespace :bonnie do
 
     task :limit_measures, [:email] => :setup do |_, args|
       user = User.find_by email: args.email
-      user.patients.each_with_index do |patient, index|
+      user.current_group.patients.each_with_index do |patient, index|
         patient.measure_ids = patient.expectedValues.select { |ev| ev['IPP'] > 0 }.map { |ev| ev['measure_id'] }.uniq
         patient.save
       end
@@ -95,7 +95,7 @@ namespace :bonnie do
 
     task :orphans, [:email] => :setup do |_, args|
       user = User.find_by email: args.email
-      user.patients.each_with_index do |patient, index|
+      user.current_group.patients.each_with_index do |patient, index|
         if patient.measure_ids.compact.empty?
           puts "#{patient.givenNames[0]} #{patient.familyName}"
         end
@@ -104,7 +104,7 @@ namespace :bonnie do
 
     task :encounters, [:email] => :setup do |_, args|
       user = User.find_by email: args.email
-      user.patients.each_with_index do |patient, index|
+      user.current_group.patients.each_with_index do |patient, index|
         puts "#{patient.familyName} #{patient.givenNames[0]} - #{patient.qdmPatient.encounters.size}"
       end
     end
@@ -112,7 +112,7 @@ namespace :bonnie do
     task :add_all_measures, [:email] => :setup do |_, args|
       user = User.find_by email: args.email
       measure_ids = user.current_group.cqm_measures.map(&:hqmf_set_id)
-      user.patients.each_with_index do |patient, index|
+      user.current_group.patients.each_with_index do |patient, index|
         patient.measure_ids = measure_ids
         patient.save
       end
@@ -127,7 +127,7 @@ namespace :bonnie do
           @code_hash[key_for_code(concept.code, concept.code_system_oid)] = vs.display_name
         end
       end
-      user.patients.each_with_index do |patient, index|
+      user.current_group.patients.each_with_index do |patient, index|
         puts index
         patient.qdmPatient.dataElements.each do |data_element|
           add_description_to_data_element(data_element)
@@ -151,7 +151,7 @@ namespace :bonnie do
 
     task :sort_entries, [:email] => :setup do |_, args|
       user = User.find_by email: args.email
-      user.patients.each_with_index do |patient, index|
+      user.current_group.patients.each_with_index do |patient, index|
         puts index
         sorted_elements = patient.qdmPatient.dataElements.sort_by! { |de| data_element_time(de) }.clone
         patient.qdmPatient.dataElements.destroy_all
@@ -191,7 +191,7 @@ namespace :bonnie do
     task :remove_unmatched, [:email] => :setup do |_, args|
       user = User.find_by email: args.email
       categorized_codes = get_categorized_codes(user)
-      user.patients.each_with_index do |patient, index|
+      user.current_group.patients.each_with_index do |patient, index|
         remove_unmatched_data_type_code_combinations(patient, categorized_codes)
       end
     end
