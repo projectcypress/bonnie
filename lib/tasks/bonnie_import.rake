@@ -1,3 +1,9 @@
+# bundle exec rake bonnie:import:cypress_bundle[2022-bundle-1-7.zip,dczulada@mitre.org]
+# bundle exec rake bonnie:import:cypress_bundle[2021-bundle.zip,2021_au@mitre.org]
+# bundle exec rake bonnie:import:add_description[dczulada@mitre.org]
+# bundle exec rake bonnie:import:sort_entries[dczulada@mitre.org]
+# bundle exec rake bonnie:import:limit_measures[dczulada@mitre.org]
+
 namespace :bonnie do
   namespace :import do
     task setup: :environment
@@ -11,6 +17,27 @@ namespace :bonnie do
     DEFAULTS = { type: nil,
                  update_measures: true,
                  clear_collections: COLLECTION_NAMES }.freeze
+
+    task :patients_with_vs, [:email, :data_type, :oid] => :setup do |_, args|
+      user = User.find_by email: args.email
+      vs = CQM::ValueSet.where(group_id: user.current_group.id, oid: args.oid).first
+      vs_codes = vs.concepts.collect(&:code)
+      CSV.open("tmp/#{args.data_type.gsub('::','_')}_#{args.oid.gsub('.','_')}.csv", 'w', col_sep: '|') do |csv|
+        user.current_group.patients.each_with_index do |patient, index|
+          found = false
+          next if found
+          patient.qdmPatient.dataElements.each_with_index do |de, de_index|
+            next unless de._type == args.data_type 
+            de_codes = de.dataElementCodes.map { |de| de['code'] }
+            next if (de_codes & vs_codes).empty?
+
+            puts index
+            found = true
+            csv << [patient.id.to_s, patient.familyName, patient.givenNames.first, de_index, de.description]
+          end
+        end
+      end
+    end
 
     task :qrda, [:file, :email, :measure] => :setup do |_, args|
       vendor_patient_file = File.new(args.file)
@@ -170,7 +197,7 @@ namespace :bonnie do
       return data_element['participationPeriod']['low'] if data_element['participationPeriod'] && data_element['participationPeriod']['low']
       return data_element['birthDatetime'] if data_element['birthDatetime']
       return data_element['expiredDatetime'] if data_element['expiredDatetime']
-      return Date.new(2030,1,1) if ['QDM::PatientCharacteristicEthnicity', 'QDM::PatientCharacteristicRace', 'QDM::PatientCharacteristicSex'].include?(data_element._type)
+      return Date.new(2030,1,1) #if ['QDM::PatientCharacteristicEthnicity', 'QDM::PatientCharacteristicRace', 'QDM::PatientCharacteristicSex'].include?(data_element._type)
     end
 
     task :cypress_bundle, [:file, :email] => :setup do |_, args|
@@ -280,7 +307,7 @@ namespace :bonnie do
         measure.population_keys.each do |pop|
           expectedValue[pop] = ir[pop]
         end
-        if population_hash[:stratification_id]
+        if population_hash && population_hash[:stratification_id]
           expectedValue['STRAT'] = 1
         end
         patient.expectedValues << expectedValue
