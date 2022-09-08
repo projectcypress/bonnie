@@ -1,8 +1,9 @@
-# bundle exec rake bonnie:import:cypress_bundle[2022-bundle-1-7.zip,dczulada@mitre.org]
-# bundle exec rake bonnie:import:cypress_bundle[2021-bundle.zip,2021_au@mitre.org]
+# bundle exec rake bonnie:import:cypress_bundle[2022-bundle-5-13.zip,dczulada@mitre.org]
 # bundle exec rake bonnie:import:add_description[dczulada@mitre.org]
 # bundle exec rake bonnie:import:sort_entries[dczulada@mitre.org]
 # bundle exec rake bonnie:import:limit_measures[dczulada@mitre.org]
+# bundle exec rake bonnie:import:add_all_measures[dczulada@mitre.org]
+# bundle exec rake bonnie:import:export_vs[dczulada@mitre.org]
 
 namespace :bonnie do
   namespace :import do
@@ -33,7 +34,32 @@ namespace :bonnie do
 
             puts index
             found = true
+            byebug
             csv << [patient.id.to_s, patient.familyName, patient.givenNames.first, de_index, de.description]
+          end
+        end
+      end
+    end
+
+    task :hep_b, [:email] => :setup do |_, args|
+      user = User.find_by email: args.email
+      rx_vs = CQM::ValueSet.where(group_id: user.current_group.id, oid: '2.16.840.1.113883.3.464.1003.196.12.1216').first
+      pro_vs = CQM::ValueSet.where(group_id: user.current_group.id, oid: '2.16.840.1.113883.3.464.1003.110.12.1042').first
+      vs_codes = rx_vs.concepts.collect(&:code)
+      vs_codes.concat(pro_vs.concepts.collect(&:code))
+      data_types= ["QDM::ProcedurePerformed", "QDM::ImmunizationAdministered"]
+      CSV.open("tmp/hep_b_cypress.csv", 'w', col_sep: '|') do |csv|
+        user.current_group.patients.each_with_index do |patient, index|
+          found = false
+          next if found
+          patient.qdmPatient.dataElements.each_with_index do |de, de_index|
+            next unless data_types.include?(de._type)
+            de_codes = de.dataElementCodes.map { |de| de['code'] }
+            next if (de_codes & vs_codes).empty?
+
+            puts index
+            found = true
+            csv << [patient.id.to_s, patient.familyName, patient.givenNames.first, de_index, de.description, de.relevantDatetime&.to_date, patient.qdmPatient.birthDatetime&.to_date, de.relevantDatetime&.to_date == patient.qdmPatient.birthDatetime&.to_date]
           end
         end
       end
@@ -62,13 +88,18 @@ namespace :bonnie do
 
     task :export_vs, [:email] => :setup do |_, args|
       user = User.find_by email: args.email
-      CQM::ValueSet.where(group_id: user.current_group.id).distinct(:oid).each do |oid|
-        vs = CQM::ValueSet.where(group_id: user.current_group.id, oid: oid).first
-        next if oid[0,4] == 'drc-'
-        CSV.open('tmp/value-set-codes.csv', 'a', col_sep: '|') do |csv|
-          csv << ['OID', 'ValueSetName', 'ExpansionVersion', 'Code', 'Descriptor', 'CodeSystemName', 'CodeSystemVersion', 'CodeSystemOID', 'Purpose']
+      vset_ids = CQM::Measure.where(group_id: user.current_group.id).map { |mes| mes.value_set_ids }.flatten.uniq
+      already_printed = []
+
+      CSV.open('tmp/value-set-codes.csv', 'a', col_sep: '|') do |csv|
+        csv << ['OID', 'ValueSetName', 'ExpansionVersion', 'Code', 'Descriptor', 'CodeSystemName', 'CodeSystemVersion', 'CodeSystemOID', 'Purpose']
+        CQM::ValueSet.find(vset_ids).each do |vs|
+          next if already_printed.include? (vs.oid)
+          next if vs.oid[0,4] == 'drc-'
+          already_printed << vs.oid
+          # CSV.open('tmp/value-set-codes.csv', 'a', col_sep: '|') do |csv|
           vs.concepts.each do |concept|
-            csv << [oid, vs.display_name, vs.version, concept.code, concept.display_name, concept.code_system_name, concept.code_system_version, concept.code_system_oid, ""]
+            csv << [vs.oid, vs.display_name, vs.version, concept.code, concept.display_name, concept.code_system_name, concept.code_system_version, concept.code_system_oid, ""]
           end
         end
       end
@@ -116,6 +147,8 @@ namespace :bonnie do
       user = User.find_by email: args.email
       user.current_group.patients.each_with_index do |patient, index|
         patient.measure_ids = patient.expectedValues.select { |ev| ev['IPP'] > 0 }.map { |ev| ev['measure_id'] }.uniq
+        other_ids = ['703CC49B-B653-4885-80E8-245A057F5AE9', 'C3657D72-21B4-4675-820A-86C7FE293BF5', '38B0B5EC-0F63-466F-8FE3-2CD20DDD1622', 'FA91BA68-1E66-4A23-8EB2-BAA8E6DF2F2F']
+        patient.measure_ids.concat(other_ids)
         patient.save
       end
     end
@@ -154,12 +187,14 @@ namespace :bonnie do
           @code_hash[key_for_code(concept.code, concept.code_system_oid)] = vs.display_name
         end
       end
-      user.current_group.patients.each_with_index do |patient, index|
-        puts index
-        patient.qdmPatient.dataElements.each do |data_element|
-          add_description_to_data_element(data_element)
+      CSV.open('tmp/missing_descriptions.csv', 'w', col_sep: '|') do |csv|
+        user.current_group.patients.each_with_index do |patient, index|
+          puts index
+          patient.qdmPatient.dataElements.each do |data_element|
+            csv << ["#{patient.familyName} #{patient.givenNames[0]}", data_element._type, data_element&.codes&.first&.code] unless add_description_to_data_element(data_element)
+          end
+          patient.save
         end
-        patient.save
       end
     end
 
@@ -174,6 +209,7 @@ namespace :bonnie do
         qdm_status = de.respond_to?(:qdmStatus) ? "#{de.qdmStatus.capitalize}: " : ""
         de.description = qdm_status + display_name if display_name 
       end
+      return de.description.nil? ? false : true
     end
 
     task :sort_entries, [:email] => :setup do |_, args|
@@ -185,6 +221,18 @@ namespace :bonnie do
         patient.qdmPatient.dataElements << sorted_elements
         patient.save
       end
+    end
+
+    task :shift_entries, [:email] => :setup do |_, args|
+      patient = Patient.first
+      earlist_jan_date = patient.qdmPatient.dataElements.map { |de| data_element_time(de).day if data_element_time(de).month == 1 && data_element_time(de).year != 2030 }.compact.min
+      latese_dec_date = patient.qdmPatient.dataElements.map { |de| data_element_time(de).day if data_element_time(de).month == 12 && data_element_time(de).year != 2030 }.compact.max
+      earliest_shift = earlist_jan_date ||= -30
+      latest_shift = latese_dec_date ||= 30
+      date_shift = 86400 * Random.rand(earliest_shift..latest_shift)
+      patient.qdmPatient.shift_dates(date_shift)
+      patient.qdmPatient.dataElements.destroy_all
+      byebug
     end
 
     def self.data_element_time(data_element)
@@ -203,8 +251,8 @@ namespace :bonnie do
     task :cypress_bundle, [:file, :email] => :setup do |_, args|
       user = User.find_by email: args.email
       user.current_group.cqm_measures.each do |measure|
-        measure.measure_period['low']['value'] = '202001010000'
-        measure.measure_period['high']['value'] = '202012312359'
+        measure.measure_period['low']['value'] = '202101010000'
+        measure.measure_period['high']['value'] = '202112312359'
         measure.save
       end
       categorized_codes = get_categorized_codes(user)
