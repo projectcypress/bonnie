@@ -83,6 +83,7 @@ class PatientsController < ApplicationController
         # attach the QRDA export, or the error
         begin
           qrda = qrda_patient_export(patient, patient_measure) # allow error to stop execution before header is written
+          File.write("tmp/patients/#{patient.familyName}_#{patient.givenNames[0]}.xml", generate_doc(qrda).to_xml)
           zip.put_next_entry(File.join("qrda", "#{patient.familyName}_#{patient.givenNames[0]}.xml"))
           zip.puts qrda
         rescue Exception => e
@@ -111,7 +112,7 @@ class PatientsController < ApplicationController
                  "#{measure.cms_id}_patient_export.zip"
                else
                  "bonnie_patient_export.zip"
-               end
+               end    
     send_data stringio.sysread, :type => 'application/zip', :disposition => 'attachment', :filename => filename
   end
 
@@ -402,6 +403,16 @@ class PatientsController < ApplicationController
       patient.qdmPatient.dataElements.push QDM::PatientCharacteristicPayer.new(dataElementCodes: payer_codes, relevantPeriod: QDM::Interval.new(patient.qdmPatient.birthDatetime, nil))
     end
     Qrda1R5.new(patient, measure, options).render
+  end
+
+  def generate_doc(rawxml)
+    xml = Tempfile.new(['test_patient', '.xml'])
+    xml.write rawxml
+    xml.close
+    doc = Nokogiri::XML(File.read(xml.path))
+    doc.root.add_namespace_definition('cda', 'urn:hl7-org:v3')
+    doc.root.add_namespace_definition('sdtc', 'urn:hl7-org:sdtc')
+    doc
   end
 
   def measure_patients_summary(patients, results, qrda_errors, html_errors, measure)
