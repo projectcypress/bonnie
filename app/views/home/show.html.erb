@@ -6,7 +6,9 @@
     <title>Bonnie v<%=Bonnie::Version.current()%></title>
     <meta name="description" content="">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <%= stylesheet_link_tag "application", :media => "all" %>
+    <link href="http://maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+    <link rel="stylesheet/less" type="text/css" href="assets/application.less" />
+    <%= render 'layouts/less' %>
     <%= render 'layouts/shim' %>
     <%= render 'layouts/framebreaker' %>
   </head>

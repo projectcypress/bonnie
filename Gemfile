@@ -2,13 +2,19 @@ source 'https://rubygems.org'
 
 gem 'rails', '5.2.4.6'
 
+# Use SCSS for stylesheets
+gem 'sass-rails', '~> 5.0.4'
+# Dependencies for CMS Assets Framework
+gem 'bootstrap-sass', '~> 3.4.1'
+gem 'font-awesome-sass', '~> 5.0.13'
+
 gem 'sprockets'
 
 # Need to require sprockets-rails expicitly to get asset pipeline, at least untill we move to SASS
 # Pinning sprockets-rails to 2.3.3 so that everything doesn't blow up. It might be time to start thinking about webpack.
 gem 'sprockets-rails', '2.3.3'
 # We need less-rails outside of the assets group so that assets will build in production
-gem 'less-rails'
+# gem 'less-rails'
 # We want non-digest versions of our assets for font-awesome
 gem "non-stupid-digest-assets"
 
@@ -83,7 +89,8 @@ group :assets do
   gem 'coffee-rails'
 
   # See https://github.com/sstephenson/execjs#readme for more supported runtimes
-  gem 'therubyracer', :platforms => :ruby
+  # gem 'therubyracer', :platforms => :ruby
+  # gem 'mini_racer'
 
   gem 'uglifier', '~> 4.1.20'
 end
