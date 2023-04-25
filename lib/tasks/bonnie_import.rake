@@ -360,6 +360,7 @@ namespace :bonnie do
         ir = JSON.parse(ir_file.get_input_stream.read)
         # new_ir = CQM::IndividualResult.new(ir)
         # new_ir.correlation_id = bundle.id.to_s
+        next unless patient_id_mapping[ir['patient_id']]
         patient_id = patient_id_mapping[ir['patient_id']][:new_id]
         next unless measure_id_mapping[ir['measure_id']]
         measure_id = measure_id_mapping[ir['measure_id']][:new_id]
