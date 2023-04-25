@@ -1,9 +1,10 @@
-# bundle exec rake bonnie:import:cypress_bundle[2022-bundle-5-13.zip,dczulada@mitre.org]
-# bundle exec rake bonnie:import:add_description[dczulada@mitre.org]
-# bundle exec rake bonnie:import:sort_entries[dczulada@mitre.org]
-# bundle exec rake bonnie:import:limit_measures[dczulada@mitre.org]
-# bundle exec rake bonnie:import:add_all_measures[dczulada@mitre.org]
-# bundle exec rake bonnie:import:export_vs[dczulada@mitre.org]
+# bundle exec rake bonnie:import:cypress_bundle\[draft.zip,bundle2023@mitre.org\]
+# bundle exec rake bonnie:import:add_description\[bundle2023@mitre.org\]
+# bundle exec rake bonnie:import:sort_entries\[bundle2023@mitre.org\]
+# bundle exec rake bonnie:import:limit_measures\[bundle2023@mitre.org\]
+# bundle exec rake bonnie:import:add_all_measures\[bundle2023@mitre.org\]
+# bundle exec rake bonnie:import:export_vs\[bundle2023@mitre.org\]
+# bundle exec rake bonnie:import:delete_patients\[bundle2023@mitre.org\]
 
 namespace :bonnie do
   namespace :import do
@@ -39,6 +40,11 @@ namespace :bonnie do
           end
         end
       end
+    end
+
+    task :delete_patients, [:email] => :setup do |_, args|
+      user = User.find_by email: args.email
+      user.current_group.patients.destroy_all
     end
 
     task :hep_b, [:email] => :setup do |_, args|
@@ -248,6 +254,13 @@ namespace :bonnie do
       return Date.new(2030,1,1) #if ['QDM::PatientCharacteristicEthnicity', 'QDM::PatientCharacteristicRace', 'QDM::PatientCharacteristicSex'].include?(data_element._type)
     end
 
+    task :all_links, [:email] => :setup do |_, args|
+      user = User.find_by email: args.email
+      user.current_group.cqm_measures.each do |measure|
+        puts "http://localhost:3000/#measures/#{measure.hqmf_set_id.upcase}"
+      end
+    end
+
     task :cypress_bundle, [:file, :email] => :setup do |_, args|
       user = User.find_by email: args.email
       user.current_group.cqm_measures.each do |measure|
@@ -321,9 +334,12 @@ namespace :bonnie do
       patient_id_csv = CSV.parse(zip.read(File.join(SOURCE_ROOTS[:calculations], 'patient-id-mapping.csv')), headers: false)
       measure_id_csv = CSV.parse(zip.read(File.join(SOURCE_ROOTS[:calculations], 'measure-id-mapping.csv')), headers: false)
       patient_id_csv.each do |row|
+        patient = user.current_group.patients.where(givenNames: [row[1]], familyName: row[2]).first
+        next unless patient
+
         patient_id_mapping[row[0]] = { givenNames: row[1],
                                        familyName: row[2],
-                                       new_id: user.current_group.patients.where(givenNames: [row[1]], familyName: row[2]).first.id }
+                                       new_id: patient.id }
       end
       measure_id_csv.each do |row|
         measure = user.current_group.cqm_measures.where(cms_id: row[1]).first
