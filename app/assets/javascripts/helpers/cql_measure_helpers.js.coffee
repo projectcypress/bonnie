@@ -341,5 +341,6 @@
       copyPop = {}
       copyPop.library_name = original.populations[popCode].library_name
       copyPop.statement_name = original.populations[popCode].statement_name
+      copyPop.subject_id = original.populations[popCode].subject_id
       copy.populations[popCode] = copyPop
     return copy
