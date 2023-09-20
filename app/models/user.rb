@@ -4,19 +4,9 @@ class User
   # Include default devise modules. Others available are:
   # :database_authenticatable, :recoverable, :rememberable,
   # :confirmable, :timeoutable and :omniauthable
-  devise :saml_authenticatable,:registerable, :trackable, :validatable
+  devise :database_authenticatable, :registerable, :lockable,
+         :recoverable, :rememberable, :trackable, :validatable
 
-  before_save :normalize_harp_id
-  def normalize_harp_id
-    # For some reason Mongoid stores empty or nil harp_id as null
-    if harp_id.blank? || harp_id.nil?
-      deactivate
-    end
-  end
-
-  def deactivate
-    remove_attribute('harp_id')
-  end
 
   # Should devise allow this user to log in?
   def active_for_authentication?
@@ -58,6 +48,11 @@ class User
 
   ## Database authenticatable
   field :email,              :type => String, :default => ""
+  field :encrypted_password, :type => String, :default => ""
+
+  ## Recoverable
+  field :reset_password_token,   :type => String
+  field :reset_password_sent_at, :type => Time
 
   ## Rememberable
   field :remember_created_at, :type => Time
@@ -69,10 +64,13 @@ class User
   field :current_sign_in_ip, :type => String
   field :last_sign_in_ip,    :type => String
 
+  ## Lockable
+  field :failed_attempts,    :type => Integer, :default => 0
+  field :unlock_token,       :type => String
+  field :locked_at,          :type => Time
+
   field :first_name,    :type => String
   field :last_name,    :type => String
-  field :harp_id, :type => String
-  index({ harp_id: 1 }, { unique: true, name: "harp_id_index", sparse: true })
   field :telephone,    :type => String
   field :admin, type:Boolean, :default => false
   field :portfolio, type:Boolean, :default => false
@@ -88,8 +86,6 @@ class User
   has_and_belongs_to_many :groups, inverse_of: nil, class_name: 'Group'
 
   scope :by_email, ->(email) { where({email: email}) }
-
-  validates :harp_id, uniqueness: { message: 'This HARP ID is already associated with another Bonnie account' }, if: :harp_id?
 
   def is_admin?
     admin || false

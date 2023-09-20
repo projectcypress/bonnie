@@ -12,6 +12,29 @@ module CQM
 
     has_and_belongs_to_many :measures, class_name: 'CQM::Measure'
 
+    def gender
+      gender_chars = qdmPatient.get_data_elements('patient_characteristic', 'gender')
+      if gender_chars&.any? && gender_chars.first.dataElementCodes && gender_chars.first.dataElementCodes.any?
+        gender_chars.first.dataElementCodes.first['code']
+      end
+    end
+
+    def race
+      race_element = qdmPatient.get_data_elements('patient_characteristic', 'race')
+      if race_element&.any? && race_element.first.dataElementCodes &&
+         race_element.first.dataElementCodes.any?
+        race_element.first.dataElementCodes.first['code']
+      end
+    end
+
+    def ethnicity
+      ethnicity_element = qdmPatient.get_data_elements('patient_characteristic', 'ethnicity')
+      if ethnicity_element&.any? && ethnicity_element.first.dataElementCodes &&
+         ethnicity_element.first.dataElementCodes.any?
+        ethnicity_element.first.dataElementCodes.first['code']
+      end
+    end
+
     # Updates the population set structure of the expected values to match the population set structure
     # on the measure.
     # If the measure has more population sets than the patient, the new population set is added to the
