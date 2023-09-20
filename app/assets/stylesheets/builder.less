@@ -78,15 +78,6 @@
     .make-sm-column(2);
     &.measure-data-container {
       // jog content over by @{offset} so that the border-right overlaps with the .col-center's border-left
-      @offset: @grid-gutter-width / 2 + @time-bar-width;
-      border-right: @time-bar-width solid @gray-lighter;
-      margin-left:  @offset;
-      margin-right: -@offset;
-
-      &> * {
-        margin-left: -@offset;
-        padding-right: (@grid-gutter-width / 2); // leave out @time-bar-width to account for parent's border-right
-      }
       & .heading-muted {
         margin-right: -@grid-gutter-width;
         .h1-style;

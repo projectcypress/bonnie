@@ -191,12 +191,9 @@ class Thorax.Collections.Measures extends Thorax.Collection
     isM1New = m1.get('patients').isEmpty()
     isM2New = m2.get('patients').isEmpty()
     timeDifference = -1 * (new Date(m1.get('cqmMeasure').updated_at) - new Date(m2.get('cqmMeasure').updated_at))
-    titleComparison = m1.get('cqmMeasure').title.localeCompare(m2.get('cqmMeasure').title)
+    titleComparison = parseInt(m1.get('cqmMeasure').cms_id.split('v')[0].substring(3)) - parseInt(m2.get('cqmMeasure').cms_id.split('v')[0].substring(3))
     if isM1New and isM2New
-      if timeDifference is 0
-        return titleComparison
-      else
-        return timeDifference
+      return titleComparison
     else
       if isM1New
         return -1

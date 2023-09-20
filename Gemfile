@@ -2,20 +2,27 @@ source 'https://rubygems.org'
 
 gem 'rails', '5.2.8.1'
 
+# Use SCSS for stylesheets
+gem 'sass-rails', '~> 5.0.4'
+# Dependencies for CMS Assets Framework
+gem 'bootstrap-sass', '~> 3.4.1'
+gem 'font-awesome-sass', '~> 5.0.13'
+
 gem 'sprockets'
 
 # Need to require sprockets-rails expicitly to get asset pipeline, at least untill we move to SASS
 # Pinning sprockets-rails to 2.3.3 so that everything doesn't blow up. It might be time to start thinking about webpack.
 gem 'sprockets-rails', '2.3.3'
 # We need less-rails outside of the assets group so that assets will build in production
-gem 'less-rails'
+# gem 'less-rails'
 # We want non-digest versions of our assets for font-awesome
 gem "non-stupid-digest-assets"
 
-gem 'cqm-models', '~>4.0.2'
-# gem 'cqm-reports', '~> 3.1.2'
-
-gem 'cqm-parsers', :git => 'https://github.com/projecttacoma/cqm-parsers.git', :branch => 'bonnie_version'
+gem 'cqm-models', '~> 4.1.0'
+# gem 'cqm-models', git: 'https://github.com/projecttacoma/cqm-models', tag: 'cypress_v7.0.0'
+# gem 'cqm-reports', '~> 4.0.0'
+gem 'cqm-reports', git: 'https://github.com/projecttacoma/cqm-reports', tag: 'cypress_v7.0.3'
+gem 'cqm-parsers', path: '../cqm-parsers'
 
 # needed for HDS
 gem 'rubyzip', '>= 1.3.0'
@@ -36,6 +43,9 @@ gem 'apipie-rails'
 gem 'maruku' # enable Markup for API documentation
 gem 'doorkeeper', '~> 4.4.0'
 gem "doorkeeper-mongodb", '~> 4.1.0'
+
+gem 'carrierwave', '~> 2.1.0'
+gem 'carrierwave-mongoid', require: 'carrierwave/mongoid'
 
 group :test, :development, :ci do
   gem 'pry'
@@ -62,7 +72,7 @@ end
 
 group :test, :development do
   gem 'pry-byebug'
-  gem 'thin', '~> 1.7.2'
+  gem 'thin', '> 1.7.2'
   gem 'capistrano-rails'
   gem 'capistrano-npm'
   gem 'rvm1-capistrano3', require: false
@@ -79,7 +89,8 @@ group :assets do
   gem 'coffee-rails'
 
   # See https://github.com/sstephenson/execjs#readme for more supported runtimes
-  gem 'therubyracer', :platforms => :ruby
+  # gem 'therubyracer', :platforms => :ruby
+  # gem 'mini_racer'
 
   gem 'uglifier', '~> 4.1.20'
 end
@@ -94,5 +105,3 @@ gem 'browser'
 
 gem "reverse_markdown", "~> 2.0"
 gem "tinymce-rails"
-
-gem "devise_saml_authenticatable"

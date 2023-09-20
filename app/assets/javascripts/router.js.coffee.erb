@@ -73,7 +73,7 @@
   renderMeasures: ->
     @measures.each (measure) -> measure.set('displayedPopulation', measure.get('populations').first())
     @navigationSetup "Dashboard", "dashboard"
-    dashboardView = new Thorax.Views.Measures(collection: @measures.sort(), patients: @patients)
+    dashboardView = new Thorax.Views.Measures(collection: @measures.sort(), patients: [])
     @mainView.setView(dashboardView)
 
   renderMeasure: (hqmfSetId) ->
