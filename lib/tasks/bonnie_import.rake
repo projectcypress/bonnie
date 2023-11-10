@@ -1,6 +1,6 @@
 # bundle exec rake bonnie:import:cypress_bundle\[bundle-2023.0.0,bundle2023@mitre.org\]
-# bundle exec rake bonnie:import:add_description\[bundle2023@mitre.org\]
-# bundle exec rake bonnie:import:sort_entries\[bundle2023@mitre.org\]
+# bundle exec rake bonnie:import:add_description\[dczulada@mitre.org\]
+# bundle exec rake bonnie:import:sort_entries\[dczulada@mitre.org\]
 # bundle exec rake bonnie:import:limit_measures\[bundle2023@mitre.org\]
 # bundle exec rake bonnie:import:add_all_measures\[bundle2023@mitre.org\]
 # bundle exec rake bonnie:import:export_vs\[bundle2023@mitre.org\]
@@ -42,6 +42,33 @@ namespace :bonnie do
       end
     end
 
+    task :try_this, [:file] => :setup do |_, args|
+      vsac_options = {
+        options: {
+          profile: 'eCQM Update 2023-05-04'
+        },
+        vsac_api_key: '3c4f1c72-0b7f-4a41-9e0e-8e06daaf9bf1',
+      }
+      value_set_loader = Measures::VSACValueSetLoader.new(vsac_options)
+      measure_file = File.new('all-measures/' + args.file)
+      measure_details = { 'episode_of_care' => 'false' }
+      loader = Measures::CqlLoader.new(measure_file, measure_details, value_set_loader)
+      measures = loader.extract_measures
+      measure_name = File.basename(args.file)
+
+
+      measures.each do |measure|
+        dirname = 'parsed-measures/' + measure_name
+        unless File.directory?(dirname)
+          FileUtils.mkdir_p(dirname)
+        end
+        value_sets_json = measure.value_sets.to_json
+        measure_json = measure.to_json
+        File.write(dirname + '/' + 'value_sets.json', value_sets_json)
+        File.write(dirname + '/' + measure_name + '.json', measure_json)
+      end
+    end
+
     task :delete_patients, [:email] => :setup do |_, args|
       user = User.find_by email: args.email
       user.current_group.patients.destroy_all
@@ -71,12 +98,14 @@ namespace :bonnie do
       end
     end
 
-    task :qrda, [:file, :email, :measure] => :setup do |_, args|
+    #bundle exec rake bonnie:import:qrda\[patient_file.zip\]
+    task :qrda, [:file] => :setup do |_, args|
       vendor_patient_file = File.new(args.file)
       artifact = Artifact.new(file: vendor_patient_file)
-      user = User.find_by email: args.email
-      measure = if user.current_group.cqm_measures.where(cms_id: args.measure).first
-                  user.current_group.cqm_measures.where(cms_id: args.measure).first
+      user = User.find_by email: 'dczulada@mitre.org'
+      cms_id = 'CMS135v11'
+      measure = if user.current_group.cqm_measures.where(cms_id: cms_id).first
+                  user.current_group.cqm_measures.where(cms_id: cms_id).first
                 else
                   user.current_group.cqm_measures.first
                 end
@@ -86,7 +115,7 @@ namespace :bonnie do
         doc.root.add_namespace_definition('cda', 'urn:hl7-org:v3')
         doc.root.add_namespace_definition('sdtc', 'urn:hl7-org:sdtc')
         patient, _warnings, codes = QRDA::Cat1::PatientImporter.instance.parse_cat1(doc)
-        patient.user = user
+        patient.group = user.current_group
         patient.measure_ids << measure.hqmf_set_id
         patient.save
       end
