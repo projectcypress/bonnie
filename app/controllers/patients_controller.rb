@@ -250,6 +250,63 @@ class PatientsController < ApplicationController
     end
   end
 
+  # def json_import
+  #   virus_scan params[:patient_import_file]
+  #   is_zip_file params[:patient_import_file]
+
+  #   # Verify target measure exists
+  #   measure = CQM::Measure.where(id: params[:measure_id]).first
+  #   raise MeasureUpdateMeasureNotFound if measure.nil?
+
+  #   # Get the JSON files from the zip:
+  #   #   meta - contains measure population, patient signature, and troubleshooting meta data.
+  #   #   patients - contains the CQM Patients array.
+  #   json = unzip_patient_import_files(params[:patient_import_file])
+  #   meta = JSON.parse(json[:meta])
+  #   raise PatientsModified if meta["patients_signature"].nil?
+  #   raise IncompatibleQdmVersion unless meta["qdm_version"].eql?(APP_CONFIG['support_qdm_version'].to_s)
+
+  #   # Verify Patients signature hash
+  #   signature = Digest::MD5.hexdigest("#{meta['qdm_version']}#{json[:patients]}")
+  #   raise PatientsModified unless signature.eql?(meta["patients_signature"])
+
+  #   # Deserialize patients json array to CQM Patient model
+  #   cqm_patients = JSON.parse(json[:patients]).map { |p| CQM::Patient.new.from_json JSON.generate p }
+
+  #   # Check whether the provided measure populations match the populations in the target measure
+  #   matching_populations = meta["measure_populations"] == measure.population_criteria.keys
+
+  #   # Prepare patients for insert
+  #   cqm_patients.each do |patient|
+  #     patient[:id] = BSON::ObjectId.new
+  #     patient[:group_id] = current_user.current_group.id
+  #     patient['measure_ids'] = [measure.hqmf_set_id]
+  #     # If the provided populations match the populations in the target measure, include them in the import
+  #     if matching_populations
+  #       patient[:expectedValues].each do |ev|
+  #         ev["measure_id"] = measure.hqmf_set_id
+  #       end
+  #     else
+  #       patient[:expectedValues] = [] # The measure population docs will be inserted when the user saves the patient.
+  #     end
+  #     # Validate patient so we don't have partial inserts
+  #     raise MeasureLoadingOther unless patient.validate
+  #   end
+
+  #   cqm_patients.each(&:upsert)
+  #   flash[:msg] = {
+  #     title: "QDM PATIENT IMPORT COMPLETED",
+  #     summary: "",
+  #     body: "Your patients have been successfully added to the measure.
+  #           #{'Due to mismatching populations, the Expected Values have been cleared from imported patients.' unless matching_populations}"
+  #   }
+  # rescue StandardError => e
+  #   puts e.backtrace
+  #   flash[:error] = turn_exception_into_shared_error_if_needed(e).front_end_version
+  # ensure
+  #   redirect_to "#{root_path}#measures/#{params[:hqmf_set_id]}"
+  # end
+
   def json_import
     virus_scan params[:patient_import_file]
     is_zip_file params[:patient_import_file]
@@ -258,53 +315,85 @@ class PatientsController < ApplicationController
     measure = CQM::Measure.where(id: params[:measure_id]).first
     raise MeasureUpdateMeasureNotFound if measure.nil?
 
-    # Get the JSON files from the zip:
-    #   meta - contains measure population, patient signature, and troubleshooting meta data.
-    #   patients - contains the CQM Patients array.
-    json = unzip_patient_import_files(params[:patient_import_file])
-    meta = JSON.parse(json[:meta])
-    raise PatientsModified if meta["patients_signature"].nil?
-    raise IncompatibleQdmVersion unless meta["qdm_version"].eql?(APP_CONFIG['support_qdm_version'].to_s)
+    vendor_patient_file = File.new(params[:patient_import_file].path)
+    artifact = Artifact.new(file: vendor_patient_file)
 
-    # Verify Patients signature hash
-    signature = Digest::MD5.hexdigest("#{meta['qdm_version']}#{json[:patients]}")
-    raise PatientsModified unless signature.eql?(meta["patients_signature"])
-
-    # Deserialize patients json array to CQM Patient model
-    cqm_patients = JSON.parse(json[:patients]).map { |p| CQM::Patient.new.from_json JSON.generate p }
-
-    # Check whether the provided measure populations match the populations in the target measure
-    matching_populations = meta["measure_populations"] == measure.population_criteria.keys
-
-    # Prepare patients for insert
-    cqm_patients.each do |patient|
-      patient[:id] = BSON::ObjectId.new
-      patient[:group_id] = current_user.current_group.id
-      patient['measure_ids'] = [measure.hqmf_set_id]
-      # If the provided populations match the populations in the target measure, include them in the import
-      if matching_populations
-        patient[:expectedValues].each do |ev|
-          ev["measure_id"] = measure.hqmf_set_id
-        end
-      else
-        patient[:expectedValues] = [] # The measure population docs will be inserted when the user saves the patient.
-      end
-      # Validate patient so we don't have partial inserts
-      raise MeasureLoadingOther unless patient.validate
+    artifact.each do |name, data|
+      # Add a patient if it passes CDA validation
+      doc = Nokogiri::XML::Document.parse(data)
+      doc.root.add_namespace_definition('cda', 'urn:hl7-org:v3')
+      doc.root.add_namespace_definition('sdtc', 'urn:hl7-org:sdtc')
+      patient, _warnings, codes = QRDA::Cat1::PatientImporter.instance.parse_cat1(doc)
+      patient.group = current_user.current_group.id
+      patient.measure_ids << measure.hqmf_set_id
+      #patient.save
+      sort_with_descriptions(patient, measure)
     end
 
-    cqm_patients.each(&:upsert)
     flash[:msg] = {
       title: "QDM PATIENT IMPORT COMPLETED",
       summary: "",
-      body: "Your patients have been successfully added to the measure.
-            #{'Due to mismatching populations, the Expected Values have been cleared from imported patients.' unless matching_populations}"
+      body: "Your patients have been successfully added to the measure."
     }
   rescue StandardError => e
     puts e.backtrace
     flash[:error] = turn_exception_into_shared_error_if_needed(e).front_end_version
   ensure
     redirect_to "#{root_path}#measures/#{params[:hqmf_set_id]}"
+  end
+
+  def sort_with_descriptions(patient, measure)
+    @code_hash = {}
+    @valuesets = measure.value_sets.flatten.uniq
+    @valuesets.each do |vs|
+      vs.concepts.each do |concept|
+        @code_hash[key_for_code(concept.code, concept.code_system_oid)] = vs.display_name
+      end
+    end
+    patient.qdmPatient.dataElements.each { |de| add_description_to_data_element(de) }
+    sorted_elements = patient.qdmPatient.dataElements.sort_by! { |de| data_element_time(de) }.clone
+    patient.qdmPatient.dataElements.destroy_all
+    patient.qdmPatient.dataElements << sorted_elements
+    patient.save
+  end
+
+  def add_description_to_data_element(data_element)
+    de = data_element
+    select_negated_code(de) if de['negationRationale'] && de.codes.find { |c| c.system == '1.2.3.4.5.6.7.8.9.10' }
+    de.codes.each do |code|
+      display_name = @code_hash[key_for_code(code.code, code.system)]
+      qdm_status = de.respond_to?(:qdmStatus) ? "#{de.qdmStatus.capitalize}: " : ""
+      de.description = qdm_status + display_name if display_name 
+    end
+    return de.description.nil? ? false : true
+  end
+
+  def select_negated_code(data_element)
+    negated_element = data_element.dataElementCodes.map { |dec| dec if dec[:system] == '1.2.3.4.5.6.7.8.9.10' }.first
+    negated_vs = negated_element[:code]
+
+    valueset = @valuesets.select { |vs| vs[:oid] == negated_vs }
+    return if valueset.empty?
+
+    code = { code: valueset.first.concepts.first['code'], system: valueset.first.concepts.first['code_system_oid'] }
+    data_element.dataElementCodes << code
+  end
+
+  def key_for_code(code, system)
+    Digest::SHA2.hexdigest("#{code} #{system}")
+  end
+
+  def data_element_time(data_element)
+    return data_element['relevantPeriod'][:low] if data_element['relevantPeriod'] && data_element['relevantPeriod'][:low]
+    return data_element['relevantDatetime'] if data_element['relevantDatetime']
+    return data_element['prevalencePeriod'][:low] if data_element['prevalencePeriod'] && data_element['prevalencePeriod'][:low]
+    return data_element['authorDatetime'] if data_element['authorDatetime']
+    return data_element['resultDatetime'] if data_element['resultDatetime']
+    return data_element['sentDatetime'] if data_element['sentDatetime']
+    return data_element['participationPeriod'][:low] if data_element['participationPeriod'] && data_element['participationPeriod'][:low]
+    return data_element['birthDatetime'] if data_element['birthDatetime']
+    return data_element['expiredDatetime'] if data_element['expiredDatetime']
+    return Date.new(2030,1,1) #if ['QDM::PatientCharacteristicEthnicity', 'QDM::PatientCharacteristicRace', 'QDM::PatientCharacteristicSex'].include?(data_element._type)
   end
 
   def share_patients
