@@ -125,6 +125,11 @@ class Thorax.Views.Measure extends Thorax.Views.BonnieView
     importJsonPatients.appendTo(@$el)
     importJsonPatients.display()
 
+  importQrdaPatients: (e) ->
+    importQrdaPatients = new Thorax.Views.ImportQrdaPatients(model: @model, measures: new Thorax.Collections.Measures(@model.collection))
+    importQrdaPatients.appendTo(@$el)
+    importQrdaPatients.display()
+
   exportQrdaPatients: (e) ->
     @exportPatientsView.exporting()
 

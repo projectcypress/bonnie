@@ -250,64 +250,64 @@ class PatientsController < ApplicationController
     end
   end
 
-  # def json_import
-  #   virus_scan params[:patient_import_file]
-  #   is_zip_file params[:patient_import_file]
-
-  #   # Verify target measure exists
-  #   measure = CQM::Measure.where(id: params[:measure_id]).first
-  #   raise MeasureUpdateMeasureNotFound if measure.nil?
-
-  #   # Get the JSON files from the zip:
-  #   #   meta - contains measure population, patient signature, and troubleshooting meta data.
-  #   #   patients - contains the CQM Patients array.
-  #   json = unzip_patient_import_files(params[:patient_import_file])
-  #   meta = JSON.parse(json[:meta])
-  #   raise PatientsModified if meta["patients_signature"].nil?
-  #   raise IncompatibleQdmVersion unless meta["qdm_version"].eql?(APP_CONFIG['support_qdm_version'].to_s)
-
-  #   # Verify Patients signature hash
-  #   signature = Digest::MD5.hexdigest("#{meta['qdm_version']}#{json[:patients]}")
-  #   raise PatientsModified unless signature.eql?(meta["patients_signature"])
-
-  #   # Deserialize patients json array to CQM Patient model
-  #   cqm_patients = JSON.parse(json[:patients]).map { |p| CQM::Patient.new.from_json JSON.generate p }
-
-  #   # Check whether the provided measure populations match the populations in the target measure
-  #   matching_populations = meta["measure_populations"] == measure.population_criteria.keys
-
-  #   # Prepare patients for insert
-  #   cqm_patients.each do |patient|
-  #     patient[:id] = BSON::ObjectId.new
-  #     patient[:group_id] = current_user.current_group.id
-  #     patient['measure_ids'] = [measure.hqmf_set_id]
-  #     # If the provided populations match the populations in the target measure, include them in the import
-  #     if matching_populations
-  #       patient[:expectedValues].each do |ev|
-  #         ev["measure_id"] = measure.hqmf_set_id
-  #       end
-  #     else
-  #       patient[:expectedValues] = [] # The measure population docs will be inserted when the user saves the patient.
-  #     end
-  #     # Validate patient so we don't have partial inserts
-  #     raise MeasureLoadingOther unless patient.validate
-  #   end
-
-  #   cqm_patients.each(&:upsert)
-  #   flash[:msg] = {
-  #     title: "QDM PATIENT IMPORT COMPLETED",
-  #     summary: "",
-  #     body: "Your patients have been successfully added to the measure.
-  #           #{'Due to mismatching populations, the Expected Values have been cleared from imported patients.' unless matching_populations}"
-  #   }
-  # rescue StandardError => e
-  #   puts e.backtrace
-  #   flash[:error] = turn_exception_into_shared_error_if_needed(e).front_end_version
-  # ensure
-  #   redirect_to "#{root_path}#measures/#{params[:hqmf_set_id]}"
-  # end
-
   def json_import
+    virus_scan params[:patient_import_file]
+    is_zip_file params[:patient_import_file]
+
+    # Verify target measure exists
+    measure = CQM::Measure.where(id: params[:measure_id]).first
+    raise MeasureUpdateMeasureNotFound if measure.nil?
+
+    # Get the JSON files from the zip:
+    #   meta - contains measure population, patient signature, and troubleshooting meta data.
+    #   patients - contains the CQM Patients array.
+    json = unzip_patient_import_files(params[:patient_import_file])
+    meta = JSON.parse(json[:meta])
+    raise PatientsModified if meta["patients_signature"].nil?
+    raise IncompatibleQdmVersion unless meta["qdm_version"].eql?(APP_CONFIG['support_qdm_version'].to_s)
+
+    # Verify Patients signature hash
+    signature = Digest::MD5.hexdigest("#{meta['qdm_version']}#{json[:patients]}")
+    raise PatientsModified unless signature.eql?(meta["patients_signature"])
+
+    # Deserialize patients json array to CQM Patient model
+    cqm_patients = JSON.parse(json[:patients]).map { |p| CQM::Patient.new.from_json JSON.generate p }
+
+    # Check whether the provided measure populations match the populations in the target measure
+    matching_populations = meta["measure_populations"] == measure.population_criteria.keys
+
+    # Prepare patients for insert
+    cqm_patients.each do |patient|
+      patient[:id] = BSON::ObjectId.new
+      patient[:group_id] = current_user.current_group.id
+      patient['measure_ids'] = [measure.hqmf_set_id]
+      # If the provided populations match the populations in the target measure, include them in the import
+      if matching_populations
+        patient[:expectedValues].each do |ev|
+          ev["measure_id"] = measure.hqmf_set_id
+        end
+      else
+        patient[:expectedValues] = [] # The measure population docs will be inserted when the user saves the patient.
+      end
+      # Validate patient so we don't have partial inserts
+      raise MeasureLoadingOther unless patient.validate
+    end
+
+    cqm_patients.each(&:upsert)
+    flash[:msg] = {
+      title: "QDM PATIENT IMPORT COMPLETED",
+      summary: "",
+      body: "Your patients have been successfully added to the measure.
+            #{'Due to mismatching populations, the Expected Values have been cleared from imported patients.' unless matching_populations}"
+    }
+  rescue StandardError => e
+    puts e.backtrace
+    flash[:error] = turn_exception_into_shared_error_if_needed(e).front_end_version
+  ensure
+    redirect_to "#{root_path}#measures/#{params[:hqmf_set_id]}"
+  end
+
+  def qrda_import
     virus_scan params[:patient_import_file]
     is_zip_file params[:patient_import_file]
 
