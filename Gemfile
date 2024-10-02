@@ -22,7 +22,7 @@ gem 'cqm-models', '~> 4.1.0'
 # gem 'cqm-models', git: 'https://github.com/projecttacoma/cqm-models', tag: 'cypress_v7.0.0'
 # gem 'cqm-reports', '~> 4.0.0'
 gem 'cqm-reports', git: 'https://github.com/projecttacoma/cqm-reports', tag: 'cypress_v7.0.3'
-gem 'cqm-parsers', path: '../cqm-parsers'
+gem 'cqm-parsers', git: 'https://github.com/projecttacoma/cqm-parsers', branch: 'relax_nokogiri'
 
 # needed for HDS
 gem 'rubyzip', '>= 1.3.0'
